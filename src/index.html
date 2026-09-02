@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>D33 · Lunar Cargo Mission v7 COLDWATER — real LOLA south-polar terrain</title>
+<style>
+/*<<<STYLE>>>*/
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<div id="glErr" class="hide"></div>
+<div id="fade"></div>
+
+<div id="start">
+  <div id="startCard">
+    <h1>D33 · LUNAR CARGO MISSION — COLDWATER</h1>
+    <div class="s2">Heavy cargo flight CL-2, flown from a 100&nbsp;km parking orbit:
+      deorbit burn → coast → powered descent from PDI → touchdown on a sunlit south-polar
+      ridge beside a pre-positioned base → cargo ramp → rover egress → DEM-planned traverse
+      into a permanently shadowed crater to log candidate cold traps.<br>
+      <b>Terrain, illumination, shadows, landing site, rover route and cold-trap candidates
+      are derived from real LRO&nbsp;LOLA topography.</b></div>
+    <div id="bootSpin"></div>
+    <div id="bootMsg">Loading…</div>
+    <button id="btnGo" class="hide">BEGIN MISSION</button>
+    <button id="btnProv">DATA &amp; FIDELITY</button>
+    <div class="fine">Fully offline · raw WebGL2 · no network, tokens or workers at runtime.<br>
+      Reduced-order physics-informed simulation. Not flight GNC. Cold traps are temperature-derived
+      candidates, not measured ice detections.</div>
+  </div>
+</div>
+
+<div id="prov" class="panel hide">
+  <h3>DATA PROVENANCE &amp; FIDELITY</h3>
+  <div class="row"><span class="k">Elevation model</span><span class="v" id="provDem">—</span></div>
+  <div class="row"><span class="k">Landing site (derived)</span><span class="v" id="provSite">—</span></div>
+  <div class="row"><span class="k">Survey PSR (derived)</span><span class="v" id="provPsr">—</span></div>
+  <div class="row"><span class="k">Rover route (A*, 18° limit)</span><span class="v" id="provRoute">—</span></div>
+  <div class="row"><span class="k">Descent plan</span><span class="v" id="provPlan">—</span></div>
+  <div class="row"><span class="k">Dispersion (Monte Carlo)</span><span class="v" id="provMc">—</span></div>
+  <div class="div"></div>
+  <div><span class="lab">SOURCE —</span> NASA PDS Geosciences, LRO LOLA GDR polar DEM
+    <code>ldem_875s_5m</code> (5 m/px, polar stereographic, south pole). 25.6 km window centred on
+    the pole, resampled to 512² @ 50 m. Elevation relative to a 1737.4 km sphere.</div>
+  <div style="margin-top:6px"><span class="lab">DERIVED (F2) —</span> mean illumination by
+    ray-marching the real DEM over a 24-azimuth sweep at 1.5° solar elevation; the rendered
+    shadows use a second, <i>directional</i> visibility raster swept at the actual sun azimuth
+    with a 0.53° solar-disc penumbra. Surface temperature by radiative equilibrium
+    (Stefan–Boltzmann) on the real slope; PSRs by connected components; landing pad by
+    slope/illumination screening; rover route by A* with an 18° grade limit.</div>
+  <div style="margin-top:6px"><span class="lab">MODELLED (F2) —</span> the descent is flown end to
+    end: DOI from a 100 km circular orbit by vis-viva, coast to a 15.2 km periapsis, then powered
+    descent — braking, approach and terminal phases — under ZEM/ZEV guidance closing on the
+    <i>navigated</i> state. Planar point-mass translation carries the curvature terms
+    (v<sub>x</sub>²/r and 1/r² gravity); second-order pitch attitude with real inertia, RCS torque
+    limit and a braking-aware rate law; throttle first-order lag and deep-throttle floor; radar
+    altimeter noise/lag, IMU drift, and a downrange <i>position</i> error that shrinks when the
+    base beacon is acquired. Touchdown is on the real terrain height under the vehicle.</div>
+  <div style="margin-top:6px"><span class="lab">SYNTHETIC (F1, cosmetic) —</span> sub-50 m surface
+    roughness and the small-crater field (below DEM post spacing); all terrain <i>beyond</i> the
+    25.6 km LOLA window, which exists only to give the approach and the horizon somewhere to be;
+    plume, ejecta, engine-scoured ground, base and vehicle geometry. None of this reaches any
+    screening number — site slope and undulation are measured on the DEM alone.</div>
+  <div style="margin-top:6px"><span class="lab">NOT CLAIMED —</span> this is not CFD, not validated
+    flight GNC, not a certified design tool, and not an ice detection. Cold traps are
+    temperature-stability candidates derived from topography alone — no neutron, radar or UV data.
+    Vehicle mass, thrust, inertia and gear limits are Apollo-LM-class assumptions, exposed in the
+    source so they can be changed.</div>
+  <button id="provClose">CLOSE</button>
+</div>
+
+<div id="tele" class="panel hide">
+  <h1>D33 · CL-2 COLDWATER</h1>
+  <div class="sub">REAL-TIME REDUCED-ORDER MULTIPHYSICS · <span id="tVer">v7</span></div>
+  <div class="row"><span class="k">PHASE</span><span class="v" id="tPhase">—</span></div>
+  <div class="row"><span class="k">MET</span><span class="v" id="met">+T 00:00</span></div>
+  <div class="row"><span class="k">CAMERA</span><span class="v" id="tCam">Cinematic</span></div>
+  <div class="row"><span class="k">VISION</span><span class="v" id="tVis">VISIBLE</span></div>
+  <div class="row"><span class="k">WARP</span><span class="v" id="tWarp">1×</span></div>
+  <div class="row"><span class="k">EXPOSURE</span><span class="v" id="tEv">+0.0 EV</span></div>
+  <div id="orbRows">
+    <div class="div"></div>
+    <div class="row"><span class="k">ORBIT ALT</span><span class="v" id="oAlt">100.0 km</span></div>
+    <div class="row"><span class="k">INERTIAL VEL</span><span class="v" id="oVel">1633 m/s</span></div>
+    <div class="row"><span class="k">DEORBIT</span><span class="v" id="oBurn">T-13 s</span></div>
+  </div>
+  <div id="desRows" class="hide">
+    <div class="div"></div>
+    <div class="row"><span class="k">ALT (truth)</span><span class="v" id="tAlt">—</span></div>
+    <div class="row"><span class="k">ALT (radar)</span><span class="v" id="tAltN">—</span></div>
+    <div class="row"><span class="k">NAV ERROR</span><span class="v" id="tNavErr">—</span></div>
+    <div class="row"><span class="k">V/SPEED</span><span class="v" id="tVs">—</span></div>
+    <div class="row"><span class="k">H/SPEED</span><span class="v" id="tHs">—</span></div>
+    <div class="row"><span class="k">PITCH (rate)</span><span class="v" id="tPitch">—</span></div>
+    <div class="row"><span class="k">T-GO</span><span class="v" id="tTgo">—</span></div>
+    <div class="row"><span class="k">THROTTLE</span><span class="v" id="tThr">—</span></div>
+    <div class="bar"><div id="tThrBar"></div></div>
+    <div class="row"><span class="k">T/W LUNAR</span><span class="v" id="tTwr">—</span></div>
+    <div class="row"><span class="k">PROP</span><span class="v" id="tFuel">—</span></div>
+    <div class="bar"><div id="tFuelBar"></div></div>
+    <div class="row"><span class="k">ΔV USED</span><span class="v" id="tDv">—</span></div>
+  </div>
+  <div id="rovRows" class="hide">
+    <div class="div"></div>
+    <div class="row"><span class="k">SPEED</span><span class="v" id="rSpd">—</span></div>
+    <div class="row"><span class="k">GRADE</span><span class="v" id="rGrade">—</span></div>
+    <div class="row"><span class="k">ODOMETER</span><span class="v" id="rOdo">—</span></div>
+    <div class="row"><span class="k">SURF TEMP</span><span class="v" id="rTemp">—</span></div>
+    <div class="row"><span class="k">ILLUMINATION</span><span class="v" id="rIll">—</span></div>
+    <div class="row"><span class="k">LAMPS</span><span class="v" id="rLampSt">off</span></div>
+    <div class="row"><span class="k">DRIVE</span><span class="v" id="rMode">AUTO</span></div>
+    <div class="div"></div>
+    <div class="row"><span class="k">NEAREST TRAP</span><span class="v" id="scanId">—</span></div>
+    <div class="row"><span class="k">RANGE / BRG</span><span class="v" id="scanRng">—</span></div>
+    <div class="row"><span class="k">SIGNAL</span><span class="v" id="scanConf">0 %</span></div>
+    <div class="bar"><div id="scanBar"></div></div>
+    <div class="row"><span class="k">LOGGED</span><span class="v" id="rFound">0 / 5</span></div>
+  </div>
+  <div class="lamps">
+    <div class="lamp" id="lampEng">ENG</div><div class="lamp" id="lampTerm">TERM</div>
+    <div class="lamp" id="lampCtc">CTC</div><div class="lamp" id="lampScan">TRAP</div>
+  </div>
+</div>
+
+<div id="right" class="panel hide">
+  <canvas id="chAlt" width="520" height="110"></canvas>
+  <canvas id="chVel" width="520" height="110"></canvas>
+  <div class="row" style="margin-top:6px"><span class="k">LANDING ELLIPSE</span><span class="v" id="tGoNo">—</span></div>
+  <canvas id="chDisp" width="520" height="190"></canvas>
+  <div class="row"><span class="k">SITE SAFE</span><span class="v" id="tSafe">—</span></div>
+  <div class="row"><span class="k">ABORT DRIVER</span><span class="v" id="tDom">—</span></div>
+  <div class="row"><span class="k">SLOPE @ TD</span><span class="v" id="tSlope">—</span></div>
+  <div class="row"><span class="k">UNDULATION</span><span class="v" id="tRough">—</span></div>
+  <div class="row"><span class="k">FPS</span><span class="v" id="tFps">—</span></div>
+  <div class="row"><span class="k">FRAME</span><span class="v" id="tMs">—</span></div>
+  <div class="row"><span class="k">DRAWS</span><span class="v" id="tDraw">—</span></div>
+  <div class="row"><span class="k">QUALITY</span><span class="v" id="tQual">—</span></div>
+</div>
+
+<div id="log" class="hide"></div>
+<div id="hint"></div>
+<div id="banner" class="hide">PSR SURVEY COMPLETE</div>
+
+<div id="mobbar" class="hide">
+  <button id="btnCam">CAM</button><button id="btnVis">VISION</button>
+  <button id="btnWarp">WARP</button><button id="btnPause">❚❚</button>
+</div>
+
+<div id="keys" class="hide">
+  <b>C</b> camera · <b>V</b> vision · <b>L</b> lamps · <b>M</b> auto/manual · <b>N</b> nav mode<br>
+  <b>Q/E</b> exposure · <b>WASD</b> drive · <b>1/2/3/4</b> warp · <b>P</b> pause · <b>R</b> restart · <b>H</b> hide UI
+</div>
+
+<div id="end" class="panel hide">
+  <h2 id="endTitle">—</h2>
+  <div class="row"><span class="k">VERTICAL AT CONTACT</span><span class="v" id="eVs">—</span></div>
+  <div class="row"><span class="k">LATERAL AT CONTACT</span><span class="v" id="eHs">—</span></div>
+  <div class="row"><span class="k">PAD MISS</span><span class="v" id="eMiss">—</span></div>
+  <div class="row"><span class="k">TILT</span><span class="v" id="eTilt">—</span></div>
+  <div class="row"><span class="k">PROP REMAINING</span><span class="v" id="eFuel">—</span></div>
+  <div class="row"><span class="k">ΔV USED</span><span class="v" id="eDv">—</span></div>
+  <div class="row"><span class="k">DESCENT TIME</span><span class="v" id="eT">—</span></div>
+  <div id="eVerdict">—</div>
+  <button id="btnAgain">CONTINUE SURFACE OPS</button>
+</div>
+
+<div class="foot">Real LOLA topography · derived illumination, shadows &amp; cold traps · reduced-order physics-informed simulation · not CFD · not flight GNC · not an ice detection</div>
+
+<script>
+(function(){
+  window.__BOOT_OK__=false;
+  window.showFatal=function(msg){ var e=document.getElementById('glErr');
+    if(e){ e.textContent=String(msg); e.classList.remove('hide'); } };
+  window.addEventListener('error',function(ev){ if(window.__BOOT_OK__) return;
+    window.showFatal('Script error: '+((ev&&ev.message)||'unknown')+
+      ((ev&&ev.filename)?(' ('+ev.filename+':'+ev.lineno+')'):'')); });
+  window.addEventListener('unhandledrejection',function(ev){ if(window.__BOOT_OK__) return;
+    window.showFatal('Async error: '+((ev&&ev.reason&&ev.reason.message)||ev.reason||'unknown')); });
+  setTimeout(function(){ var e=document.getElementById('glErr');
+    if(!window.__BOOT_OK__&&e&&e.classList.contains('hide'))
+      window.showFatal('Startup timeout — WebGL2 unavailable, a script was blocked, or DecompressionStream is unsupported (needs Chrome 80+/Safari 16.4+/Firefox 113+).'); },20000);
+})();
+</script>
+<script>
+/*<<<DEM>>>*/
+</script>
+<script>
+/*<<<CORE>>>*/
+</script>
+<script>
+/*<<<GLSL>>>*/
+</script>
+<script>
+/*<<<GFX>>>*/
+</script>
+<script>
+/*<<<MISSION>>>*/
+</script>
+</body>
+</html>

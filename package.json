@@ -1,0 +1,14 @@
+{
+  "name": "reduced-order-physics-simulations",
+  "version": "7.0.0",
+  "private": true,
+  "description": "Reduced-order, physics-informed simulations for R&D. D33 Lunar Cargo Mission v7 COLDWATER.",
+  "scripts": {
+    "build": "node build.js",
+    "test": "node --test test/*.test.js",
+    "headless": "node test/headless.js",
+    "check": "node --check src/core.js && node --check src/glsl.js && node --check src/gfx.js && node --check src/mission.js",
+    "all": "npm run check && npm test && npm run build && npm run headless"
+  },
+  "license": "MIT"
+}
